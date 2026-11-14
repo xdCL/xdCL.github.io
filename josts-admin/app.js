@@ -233,36 +233,37 @@ async function loadActivity(){
 }
 function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("show"),2200)}
 async function initAuth(){
+  const gateBtn=$("#gateLoginBtn");
   if(!CONFIG.apiBase){
     state.backendReady=false;
-    $("#connectionBadge").innerHTML="<span></span> Sólo lectura";
-    $("#loginBtn").onclick=()=>toast("El acceso seguro estará disponible en la versión Vercel del panel");
-    return;
+    gateBtn.onclick=()=>toast("Panel administrativo disponible sólo mediante acceso seguro.");
+    return false;
   }
   try{
     const res=await fetch(CONFIG.apiBase+"/api/session",{credentials:"include",cache:"no-store"});
     const data=await res.json();
     state.backendReady=!!data.authenticated;
     if(data.authenticated){
+      document.body.classList.remove("locked");
+      document.body.classList.add("unlocked");
+      $("#appShell").hidden=false;
       $("#connectionBadge").innerHTML="<span style='background:var(--green)'></span> "+escapeHtml(data.user);
       $("#loginBtn").innerHTML="Cerrar sesión · "+escapeHtml(data.user);
       $("#loginBtn").onclick=async()=>{
         await fetch(CONFIG.apiBase+"/api/logout",{method:"POST",credentials:"include"});
-        location.reinitAuth();
-load();
+        location.reload();
       };
       $("#authState").textContent="Autenticado como "+data.user;
       $("#authState").classList.add("green");
-    }else{
-      $("#connectionBadge").innerHTML="<span></span> Sin autenticar";
-      $("#loginBtn").onclick=()=>location.href=CONFIG.apiBase+"/api/login";
-      $("#authState").textContent="Inicia sesión con GitHub";
+      renderPending();
+      return true;
     }
-    renderPending();
+    gateBtn.onclick=()=>location.href=CONFIG.apiBase+"/api/login";
+    return false;
   }catch{
     state.backendReady=false;
-    $("#connectionBadge").innerHTML="<span></span> API no disponible";
-    $("#loginBtn").onclick=()=>toast("El backend de Josts Control no está disponible");
+    gateBtn.onclick=()=>toast("El acceso administrativo no está disponible.");
+    return false;
   }
 }
 
@@ -288,4 +289,7 @@ $("#confirmPublishBtn").onclick=async e=>{
   if(!res.ok){toast("No se pudo publicar");return}
   state.original=cloneRows(state.draft);render();$("#publishDialog").close();toast("Cambios publicados");
 };
-load();
+(async()=>{
+  const ok=await initAuth();
+  if(ok) await load();
+})();
