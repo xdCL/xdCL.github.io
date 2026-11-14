@@ -9,8 +9,7 @@
   <title>Josts Control · xdCL</title>
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-  <div class="shell">
+<body class="locked">\n  <div id="accessGate" class="access-gate">\n    <div class="gate-card">\n      <div class="gate-brand">xdCL</div>\n      <div class="eyebrow">Acceso restringido</div>\n      <h1>Josts Control</h1>\n      <p>Panel administrativo privado.</p>\n      <button class="button github" id="gateLoginBtn">Iniciar con GitHub</button>\n      <small>Acceso autorizado únicamente.</small>\n    </div>\n  </div>\n  <div class="shell" id="appShell" hidden>
     <aside class="sidebar">
       <a class="brand" href="../" aria-label="Volver a xdCL">xdCL</a>
       <div class="product">
@@ -163,5 +162,5 @@
 
   <div class="toast" id="toast" role="status"></div>
   <script src="app.js"></script>
-</body>
+  <noscript>Josts Control requiere JavaScript.</noscript>\n</body>
 </html>
