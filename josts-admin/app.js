@@ -5,7 +5,7 @@ const CONFIG = {
   sourcePath: "sync/domains.txt",
   manifestUrl: "https://raw.githubusercontent.com/xdCL/Josts/sync-data/sync/manifest.json",
   sourceUrl: "https://raw.githubusercontent.com/xdCL/Josts/sync-data/sync/domains.txt",
-  apiBase: "" // Se habilitará cuando conectemos el backend serverless autenticado.
+  apiBase: location.hostname.endsWith(".vercel.app") ? location.origin : ""
 };
 
 const $ = s => document.querySelector(s);
@@ -232,6 +232,40 @@ async function loadActivity(){
   }catch{$("#activityList").innerHTML='<div class="loading-block">No fue posible consultar el historial.</div>'}
 }
 function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("show"),2200)}
+async function initAuth(){
+  if(!CONFIG.apiBase){
+    state.backendReady=false;
+    $("#connectionBadge").innerHTML="<span></span> Sólo lectura";
+    $("#loginBtn").onclick=()=>toast("El acceso seguro estará disponible en la versión Vercel del panel");
+    return;
+  }
+  try{
+    const res=await fetch(CONFIG.apiBase+"/api/session",{credentials:"include",cache:"no-store"});
+    const data=await res.json();
+    state.backendReady=!!data.authenticated;
+    if(data.authenticated){
+      $("#connectionBadge").innerHTML="<span style='background:var(--green)'></span> "+escapeHtml(data.user);
+      $("#loginBtn").innerHTML="Cerrar sesión · "+escapeHtml(data.user);
+      $("#loginBtn").onclick=async()=>{
+        await fetch(CONFIG.apiBase+"/api/logout",{method:"POST",credentials:"include"});
+        location.reinitAuth();
+load();
+      };
+      $("#authState").textContent="Autenticado como "+data.user;
+      $("#authState").classList.add("green");
+    }else{
+      $("#connectionBadge").innerHTML="<span></span> Sin autenticar";
+      $("#loginBtn").onclick=()=>location.href=CONFIG.apiBase+"/api/login";
+      $("#authState").textContent="Inicia sesión con GitHub";
+    }
+    renderPending();
+  }catch{
+    state.backendReady=false;
+    $("#connectionBadge").innerHTML="<span></span> API no disponible";
+    $("#loginBtn").onclick=()=>toast("El backend de Josts Control no está disponible");
+  }
+}
+
 function changeView(name){
   $$(".nav-item").forEach(x=>x.classList.toggle("active",x.dataset.view===name));
   $$(".view").forEach(x=>x.classList.remove("active"));
@@ -244,7 +278,7 @@ $("#addBtn").onclick=()=>openEditor();$("#reloadBtn").onclick=load;
 $("#discardBtn").onclick=()=>{state.draft=cloneRows(state.original);render();toast("Cambios descartados")};
 $("#publishBtn").onclick=showPublish;
 $("#editorForm").addEventListener("submit",e=>{if(e.submitter?.value==="cancel")return;if(!saveEditor()){e.preventDefault();return}});
-$("#loginBtn").onclick=()=>{changeView("settings");toast("Conecta el backend seguro para habilitar GitHub")};
+// El comportamiento del botón GitHub se define en initAuth().
 $("#confirmPublishBtn").onclick=async e=>{
   e.preventDefault();
   if(!state.backendReady)return;
