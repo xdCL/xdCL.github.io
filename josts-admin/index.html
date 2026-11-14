@@ -105,11 +105,11 @@
             <span class="pill green">Conectado</span>
           </div>
           <div class="setting-row">
-            <div><strong>Publicación firmada</strong><p>GitHub Actions genera <code>hosts-pack.txt</code> y <code>manifest.json</code>.</p></div>
-            <span class="pill warn" id="signingState">Requiere secret</span>
+            <div><strong>Publicación firmada</strong><p>Josts Control genera, firma y publica <code>hosts-pack.txt</code> + <code>manifest.json</code> en un único commit.</p></div>
+            <span class="pill warn" id="signingState">Clave en Vercel</span>
           </div>
           <div class="setting-row">
-            <div><strong>Acceso administrativo</strong><p>El panel nunca almacenará una contraseña GitHub ni una clave RSA en el navegador.</p></div>
+            <div><strong>Acceso administrativo</strong><p>OAuth verifica que seas <code>xdCL</code>; el token del repositorio y la clave RSA viven sólo como secretos del backend.</p></div>
             <span class="pill" id="authState">Backend pendiente</span>
           </div>
           <div class="security-note">
