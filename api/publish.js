@@ -29,11 +29,11 @@ function signManifest(pack){
   const signature=crypto.sign("RSA-SHA256",Buffer.from(payload,"utf8"),key).toString("base64");
   return {schema:1,version,sha256:hash,signature};
 }
-async function createBlob(content){
+async function createBlob(content,token){
   return github("/repos/"+OWNER+"/"+REPO+"/git/blobs",{
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({content,encoding:"utf-8"})
-  });
+  },token);
 }
 
 module.exports=async(req,res)=>{
@@ -54,14 +54,14 @@ module.exports=async(req,res)=>{
   }catch(e){return json(res,400,{error:e.message})}
 
   try{
-    const ref=await github("/repos/"+OWNER+"/"+REPO+"/git/ref/heads/"+encodeURIComponent(BRANCH));
+    const ref=await github("/repos/"+OWNER+"/"+REPO+"/git/ref/heads/"+encodeURIComponent(BRANCH),{},session.githubToken);
     const head=ref.object.sha;
-    const commit=await github("/repos/"+OWNER+"/"+REPO+"/git/commits/"+head);
+    const commit=await github("/repos/"+OWNER+"/"+REPO+"/git/commits/"+head,{},session.githubToken);
 
     const [domainsBlob,packBlob,manifestBlob]=await Promise.all([
-      createBlob(content),
-      createBlob(pack),
-      createBlob(JSON.stringify(manifest)+"\n")
+      createBlob(content,session.githubToken),
+      createBlob(pack,session.githubToken),
+      createBlob(JSON.stringify(manifest)+"\n",session.githubToken)
     ]);
 
     const tree=await github("/repos/"+OWNER+"/"+REPO+"/git/trees",{
@@ -74,7 +74,7 @@ module.exports=async(req,res)=>{
           {path:"sync/manifest.json",mode:"100644",type:"blob",sha:manifestBlob.sha}
         ]
       })
-    });
+    },session.githubToken);
 
     const changes=Array.isArray(body.changes)?body.changes:[];
     const added=changes.filter(x=>x.type==="add").length;
@@ -87,12 +87,12 @@ module.exports=async(req,res)=>{
         tree:tree.sha,
         parents:[head]
       })
-    });
+    },session.githubToken);
 
     await github("/repos/"+OWNER+"/"+REPO+"/git/refs/heads/"+encodeURIComponent(BRANCH),{
       method:"PATCH",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({sha:newCommit.sha,force:false})
-    });
+    },session.githubToken);
 
     json(res,200,{
       ok:true,
