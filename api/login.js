@@ -10,7 +10,7 @@ module.exports=async(req,res)=>{
   const url=new URL("https://github.com/login/oauth/authorize");
   url.searchParams.set("client_id",client);
   url.searchParams.set("redirect_uri",callback);
-  url.searchParams.set("scope","read:user");
+  url.searchParams.set("scope","read:user public_repo");
   url.searchParams.set("state",state);
   redirect(res,url.toString());
 };
