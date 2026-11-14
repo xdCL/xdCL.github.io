@@ -34,7 +34,7 @@ module.exports=async(req,res)=>{
   if(!userRes.ok||!user.login) return json(res,401,{error:"No se pudo verificar la cuenta GitHub"});
   if(user.login.toLowerCase()!==ALLOWED_LOGIN.toLowerCase()) return json(res,403,{error:"Esta cuenta no está autorizada para administrar Josts."});
 
-  setSession(res,user.login);
+  setSession(res,user.login,token.access_token);
   res.setHeader("Set-Cookie",[
     res.getHeader("Set-Cookie"),
     "josts_oauth_state=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0"
