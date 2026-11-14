@@ -12,16 +12,20 @@ function b64url(input){
 function unb64url(input){
   input=input.replace(/-/g,"+").replace(/_/g,"/");
   while(input.length%4) input+="=";
-  return Buffer.from(input,"base64").toString("utf8");
+  return Buffer.from(input,"base64");
 }
-function sign(value){
+function sessionKey(){
   const secret=process.env.SESSION_SECRET;
   if(!secret) throw new Error("Missing SESSION_SECRET");
-  return b64url(crypto.createHmac("sha256",secret).update(value).digest());
+  return crypto.createHash("sha256").update(secret).digest();
 }
-function makeSession(login){
-  const payload=b64url(JSON.stringify({login,exp:Date.now()+8*60*60*1000}));
-  return payload+"."+sign(payload);
+function makeSession(login,githubToken){
+  const iv=crypto.randomBytes(12);
+  const cipher=crypto.createCipheriv("aes-256-gcm",sessionKey(),iv);
+  const payload=Buffer.from(JSON.stringify({login,githubToken,exp:Date.now()+8*60*60*1000}),"utf8");
+  const encrypted=Buffer.concat([cipher.update(payload),cipher.final()]);
+  const tag=cipher.getAuthTag();
+  return [b64url(iv),b64url(tag),b64url(encrypted)].join(".");
 }
 function readCookies(req){
   const out={};
@@ -37,17 +41,19 @@ function readSession(req){
   try{
     const token=readCookies(req).josts_session;
     if(!token) return null;
-    const [payload,sig]=token.split(".");
-    const expected=sign(payload);
-    if(!sig||sig.length!==expected.length||!crypto.timingSafeEqual(Buffer.from(sig),Buffer.from(expected))) return null;
-    const data=JSON.parse(unb64url(payload));
-    if(!data.login||data.exp<Date.now()||data.login.toLowerCase()!==ALLOWED_LOGIN.toLowerCase()) return null;
+    const [iv64,tag64,data64]=token.split(".");
+    if(!iv64||!tag64||!data64) return null;
+    const decipher=crypto.createDecipheriv("aes-256-gcm",sessionKey(),unb64url(iv64));
+    decipher.setAuthTag(unb64url(tag64));
+    const plain=Buffer.concat([decipher.update(unb64url(data64)),decipher.final()]);
+    const data=JSON.parse(plain.toString("utf8"));
+    if(!data.login||!data.githubToken||data.exp<Date.now()||data.login.toLowerCase()!==ALLOWED_LOGIN.toLowerCase()) return null;
     return data;
   }catch{return null}
 }
-function setSession(res,login){
+function setSession(res,login,githubToken){
   const secure="Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800";
-  res.setHeader("Set-Cookie","josts_session="+encodeURIComponent(makeSession(login))+"; "+secure);
+  res.setHeader("Set-Cookie","josts_session="+encodeURIComponent(makeSession(login,githubToken))+"; "+secure);
 }
 function clearSession(res){
   res.setHeader("Set-Cookie","josts_session=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0");
@@ -100,9 +106,8 @@ function validateSource(text){
   }
   return rows;
 }
-async function github(path,options={}){
-  const token=process.env.GITHUB_REPO_TOKEN;
-  if(!token) throw new Error("Missing GITHUB_REPO_TOKEN");
+async function github(path,options={},token){
+  if(!token) throw new Error("Missing GitHub session token");
   const res=await fetch("https://api.github.com"+path,{
     ...options,
     headers:{
