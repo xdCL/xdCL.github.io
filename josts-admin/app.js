@@ -5,7 +5,7 @@ const CONFIG = {
   sourcePath: "sync/domains.txt",
   manifestUrl: "https://raw.githubusercontent.com/xdCL/Josts/sync-data/sync/manifest.json",
   sourceUrl: "https://raw.githubusercontent.com/xdCL/Josts/sync-data/sync/domains.txt",
-  apiBase: location.hostname.endsWith(".vercel.app") ? location.origin : ""
+  apiBase: location.hostname === "xdcl.github.io" ? "" : location.origin
 };
 
 const $ = s => document.querySelector(s);
